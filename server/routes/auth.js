@@ -5,14 +5,18 @@ const router = express.Router();
 const User = require("../models/User");
 
 // Hashing & Token
+const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const bcrypt = require("bcrypt");
 const saltRounds = 10;
 
 // Utils
+const dayjs = require("dayjs");
 const transporter = require("../utils/mailer");
+const passport = require("passport");
+const { profile } = require("console");
 
-// Route: /register
+// Route: /auth/register
 // Method: POST
 // Header: -
 // Query: -
@@ -63,9 +67,9 @@ router.post("/register", async (req, res) => {
 
     await newUser.save();
 
-    const verificationLink = `${process.env.CLIENT_URL}/verify-email/token=${rawToken}`;
+    const verificationLink = `${process.env.CLIENT_URL}/verify-email?token=${rawToken}`;
 
-    transporter.sendMail({
+    await transporter.sendMail({
       from: '"Evently" <no-reply@evently.com>',
       to: email,
       subject: "Evently Account Confirmation",
@@ -74,7 +78,9 @@ router.post("/register", async (req, res) => {
         <p>Thank you for registering at Evently!</p>
         <p>Please click this link to verify your account:</p>
         <a href="${verificationLink}">${verificationLink}</a>
-        <p>This link will be expired in ${tokenExpires}</p>
+        <p>This link will be expired in ${dayjs(tokenExpires).format(
+          "HH:mm, DD MMM YYYY"
+        )}</p>
         <p><i>If you feel like you're not registering to Evently, please ignore this email!.</i></p>
         `,
     });
@@ -95,7 +101,79 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// Route: /verify-email
+// Route: /auth/resend-verification
+// Method: POST
+// Header: -
+// Query: -
+// Body: email
+router.post("/resend-verification", async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing required field",
+    });
+  }
+
+  try {
+    const user = await User.findOne({
+      email,
+      isVerified: false,
+      verifyTokenExpires: {
+        $lt: Date.now(),
+      },
+    });
+
+    if (user) {
+      // Dikirim ke user lewat email
+      const rawToken = crypto.randomBytes(32).toString("hex");
+
+      // Simpan
+      const hashedToken = crypto
+        .createHash("sha256")
+        .update(rawToken)
+        .digest("hex");
+
+      user.verifyToken = hashedToken;
+      // Expires dalam 7 jam
+      // in ms = sekarang + 7 jam * 60 menit * 60 detik * 1000 ms
+      const tokenExpires = Date.now() + 7 * 60 * 60 * 1000;
+      user.verifyTokenExpires = tokenExpires;
+      await user.save();
+
+      const verificationLink = `${process.env.CLIENT_URL}/verify-email?token=${rawToken}`;
+
+      await transporter.sendMail({
+        from: '"Evently" <no-reply@evently.com>',
+        to: email,
+        subject: "Resend: Evently Account Confirmation",
+        html: `
+        <h2>Hello ${user.username},</h2>
+        <p>Thank you for registering at Evently!</p>
+        <p>Please click this link to verify your account:</p>
+        <a href="${verificationLink}">${verificationLink}</a>
+        <p>This link will be expired in ${dayjs(tokenExpires).format(
+          "HH:mm, DD MMM YYYY"
+        )}</p>
+        <p><i>If you feel like you're not registering to Evently, please ignore this email!.</i></p>
+        `,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Confirmation mail has been sent.",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error || "Internal server error",
+    });
+  }
+});
+
+// Route: /auth/verify-email
 // Method: GET
 // Header: -
 // Query: token
@@ -152,5 +230,115 @@ router.get("/verify-email", async (req, res) => {
     });
   }
 });
+
+// Route: /auth/login
+// Method: GET
+// Header: -
+// Query: token
+// Body: -
+router.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing required fields",
+    });
+  }
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return res.status(404).json({
+      success: false,
+      message: "User not found",
+    });
+  }
+
+  if (!user.isVerified) {
+    return res.status(400).json({
+      success: false,
+      message: "User not verified",
+    });
+  }
+
+  if (user.authType !== "local") {
+    return res.status(400).json({
+      success: false,
+      message: "User auth is not local",
+    });
+  }
+
+  const passwordValid = await bcrypt.compare(password, user.password);
+
+  if (!passwordValid) {
+    return res.status(400).json({
+      success: false,
+      message: "Password mismatch",
+    });
+  }
+
+  const token = jwt.sign(
+    {
+      id: user._id,
+      email: user.email,
+      authType: user.authType,
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "7d",
+    }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "Login success",
+    token,
+    data: {
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      authType: user.authType,
+      role: user.role,
+    },
+  });
+
+  try {
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error || "Internal server error",
+    });
+  }
+});
+
+// Route: /auth/google
+// Method: GET
+// Header: -
+// Query: -
+// Body: -
+router.get(
+  "/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+  })
+);
+
+// Route: /auth/google/callback
+// Method: GET
+// Header: -
+// Query: -
+// Body: -
+router.get(
+  "/google/callback",
+  passport.authenticate("google", {
+    session: false,
+    failureRedirect: "/login-failed",
+  }),
+  (req, res) => {
+    // dikirim dari done(null, token)
+    const token = req.user;
+    res.redirect(`${process.env.CLIENT_URL}/oauth-success?token=${token}`);
+  }
+);
 
 module.exports = router;
