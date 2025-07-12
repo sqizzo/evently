@@ -13,67 +13,78 @@ const saltRounds = 10;
 // Utils
 const dayjs = require("dayjs");
 const transporter = require("../utils/mailer");
+const createVerificationToken = require("../utils/createVerificationToken");
 const passport = require("passport");
-const { profile } = require("console");
+const { body, validationResult } = require("express-validator");
 
 // Route: /auth/register
 // Method: POST
 // Header: -
 // Query: -
 // Body: username, email, password
-router.post("/register", async (req, res) => {
-  const { username, email, password } = req.body;
+// Test: Success
+router.post(
+  "/register",
+  [
+    body("email").isEmail().withMessage("Email must be valid"),
+    body("password")
+      .notEmpty()
+      .trim()
+      .withMessage("Password is required")
+      .isLength({ min: 8 })
+      .withMessage("Minimum password length is 8 characters"),
+    body("username")
+      .trim()
+      .notEmpty()
+      .withMessage("Username is required")
+      .trim()
+      .isLength({ min: 4 })
+      .withMessage("Minimum username length is 4 characters"),
+  ],
+  async (req, res) => {
+    const { username, email, password } = req.body;
+    const errors = validationResult(req);
 
-  if (!username || !email || !password) {
-    return res.status(400).json({
-      success: false,
-      message: "Missing required body",
-    });
-  }
-
-  try {
-    const isExistUser = await User.findOne({ email });
-
-    if (isExistUser) {
+    if (!errors.isEmpty()) {
       return res.status(400).json({
         success: false,
-        message: "Email already registered",
+        message: errors.array()[0].msg,
+        errors: errors.array(),
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
+    try {
+      const isExistUser = await User.findOne({ email });
 
-    const newUser = new User({
-      username,
-      email,
-      password: hashedPassword,
-    });
+      if (isExistUser) {
+        return res.status(400).json({
+          success: false,
+          message: "Email already registered",
+        });
+      }
 
-    // Dikirim ke user lewat email
-    const rawToken = crypto.randomBytes(32).toString("hex");
+      const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Simpan
-    const hashedToken = crypto
-      .createHash("sha256")
-      .update(rawToken)
-      .digest("hex");
+      const newUser = new User({
+        username: username,
+        email: email,
+        password: hashedPassword,
+      });
 
-    newUser.verifyToken = hashedToken;
+      const { rawToken, hashedToken, tokenExpires } = createVerificationToken();
 
-    // Expires dalam 7 jam
-    // in ms = sekarang + 7 jam * 60 menit * 60 detik * 1000 ms
-    const tokenExpires = Date.now() + 7 * 60 * 60 * 1000;
-    newUser.verifyTokenExpires = tokenExpires;
+      newUser.verifyToken = hashedToken;
+      newUser.verifyTokenExpires = tokenExpires;
 
-    await newUser.save();
+      await newUser.save();
 
-    const verificationLink = `${process.env.CLIENT_URL}/verify-email?token=${rawToken}`;
+      const verificationLink = `${process.env.CLIENT_URL}/verify-email?token=${rawToken}`;
 
-    await transporter.sendMail({
-      from: '"Evently" <no-reply@evently.com>',
-      to: email,
-      subject: "Evently Account Confirmation",
-      html: `
+      await transporter.sendMail({
+        from: '"Evently" <no-reply@evently.com>',
+        to: email,
+        subject: "Evently Account Confirmation",
+        html: `
         <h2>Hello ${username},</h2>
         <p>Thank you for registering at Evently!</p>
         <p>Please click this link to verify your account:</p>
@@ -83,29 +94,32 @@ router.post("/register", async (req, res) => {
         )}</p>
         <p><i>If you feel like you're not registering to Evently, please ignore this email!.</i></p>
         `,
-    });
+      });
 
-    res.status(201).json({
-      success: true,
-      message: "User registration was successful. Check email for confirmation",
-      data: {
-        username,
-        email,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error || "Internal server error",
-    });
+      res.status(201).json({
+        success: true,
+        message:
+          "User registration was successful. Check email for confirmation",
+        data: {
+          username,
+          email,
+        },
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error || "Internal server error",
+      });
+    }
   }
-});
+);
 
 // Route: /auth/resend-verification
 // Method: POST
 // Header: -
 // Query: -
 // Body: email
+// Test: Success
 router.post("/resend-verification", async (req, res) => {
   const { email } = req.body;
 
@@ -159,11 +173,16 @@ router.post("/resend-verification", async (req, res) => {
         <p><i>If you feel like you're not registering to Evently, please ignore this email!.</i></p>
         `,
       });
+
+      res.status(200).json({
+        success: true,
+        message: "Confirmation mail has been sent.",
+      });
     }
 
-    res.status(200).json({
-      success: true,
-      message: "Confirmation mail has been sent.",
+    return res.status(400).json({
+      success: false,
+      message: "Email already verified or email not expired yet",
     });
   } catch (error) {
     res.status(500).json({
@@ -178,6 +197,7 @@ router.post("/resend-verification", async (req, res) => {
 // Header: -
 // Query: token
 // Body: -
+// Test: Success
 router.get("/verify-email", async (req, res) => {
   const { token } = req.query;
 
@@ -200,7 +220,7 @@ router.get("/verify-email", async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: "User not found",
+        message: "User not found/verification link changed",
       });
     }
 
@@ -236,6 +256,7 @@ router.get("/verify-email", async (req, res) => {
 // Header: -
 // Query: token
 // Body: -
+// Test: Success
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -250,7 +271,7 @@ router.post("/login", async (req, res) => {
   if (!user) {
     return res.status(404).json({
       success: false,
-      message: "User not found",
+      message: "Email/password mismatch",
     });
   }
 
@@ -273,7 +294,7 @@ router.post("/login", async (req, res) => {
   if (!passwordValid) {
     return res.status(400).json({
       success: false,
-      message: "Password mismatch",
+      message: "Email/password mismatch",
     });
   }
 
@@ -316,6 +337,7 @@ router.post("/login", async (req, res) => {
 // Header: -
 // Query: -
 // Body: -
+// Test: Success
 router.get(
   "/google",
   passport.authenticate("google", {
@@ -328,6 +350,7 @@ router.get(
 // Header: -
 // Query: -
 // Body: -
+// Test: Success
 router.get(
   "/google/callback",
   passport.authenticate("google", {

@@ -16,6 +16,8 @@ const app = express();
 
 // Routes
 const authRouter = require("./routes/auth");
+const profileRouter = require("./routes/profile");
+const eventRouter = require("./routes/event");
 
 // Pakai cors biar frontend bisa akses backend
 // credentials: true untuk izinin browser kirim credentials seperti cookie, auth bearer
@@ -42,6 +44,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/auth", authRouter);
+app.use("/me", profileRouter);
+app.use("/events", eventRouter);
 
 // Connect MongoDB
 mongoose
@@ -51,7 +55,8 @@ mongoose
     console.log("Connection to MongoDB was successfully established");
     app.listen(PORT, () => {
       console.log(
-        `Server running on: http://${process.env.HOSTNAME}:${process.env.PORT}`
+        `Server running on: http://${process.env.HOSTNAME}:${process.env.PORT}
+Client running on: http://${process.env.CLIENT_URL}`
       );
       console.log("---- Logger ----");
     });

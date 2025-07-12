@@ -2,12 +2,12 @@ const jwt = require("jsonwebtoken");
 
 // Purpose: To verify whether the request contains jwt token
 const authMiddleware = (req, res, next) => {
-  const tokenHeader = req.get("authorization");
+  const tokenHeader = req.get("Authorization");
 
-  if (!tokenHeader || !authHeader.startsWith("Bearer ")) {
+  if (!tokenHeader || !tokenHeader.startsWith("Bearer ")) {
     return res
       .status(401)
-      .json({ success: false, message: "Missing / malformed token" });
+      .json({ success: false, message: "Missing/malformed token" });
   }
   const token = tokenHeader.split(" ")[1];
 
