@@ -31,6 +31,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    bookmarkedEvent: [
+      {
+        type: mongoose.Types.ObjectId,
+        ref: "Event",
+      },
+    ],
     verifyToken: {
       type: String,
     },

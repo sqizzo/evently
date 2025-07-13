@@ -108,7 +108,7 @@ router.post(
     } catch (error) {
       res.status(500).json({
         success: false,
-        message: error || "Internal server error",
+        message: error?.message || "Internal server error",
       });
     }
   }
@@ -140,19 +140,8 @@ router.post("/resend-verification", async (req, res) => {
     });
 
     if (user) {
-      // Dikirim ke user lewat email
-      const rawToken = crypto.randomBytes(32).toString("hex");
-
-      // Simpan
-      const hashedToken = crypto
-        .createHash("sha256")
-        .update(rawToken)
-        .digest("hex");
-
+      const { rawToken, hashedToken, tokenExpires } = createVerificationToken();
       user.verifyToken = hashedToken;
-      // Expires dalam 7 jam
-      // in ms = sekarang + 7 jam * 60 menit * 60 detik * 1000 ms
-      const tokenExpires = Date.now() + 7 * 60 * 60 * 1000;
       user.verifyTokenExpires = tokenExpires;
       await user.save();
 
@@ -187,7 +176,7 @@ router.post("/resend-verification", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error || "Internal server error",
+      message: error?.message || "Internal server error",
     });
   }
 });
@@ -246,7 +235,7 @@ router.get("/verify-email", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error || "Internal server error",
+      message: error?.message || "Internal server error",
     });
   }
 });
@@ -303,6 +292,7 @@ router.post("/login", async (req, res) => {
       id: user._id,
       email: user.email,
       authType: user.authType,
+      role: user.role,
     },
     process.env.JWT_SECRET,
     {
@@ -327,7 +317,7 @@ router.post("/login", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error || "Internal server error",
+      message: error?.message || "Internal server error",
     });
   }
 });

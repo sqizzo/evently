@@ -5,16 +5,19 @@ const eventSchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      trim: true,
     },
     description: {
       type: String,
       required: true,
     },
+    //default new
     startDate: {
       type: Date,
       required: true,
       default: () => new Date(),
     },
+    //default undef
     endDate: {
       type: Date,
       validate: {
@@ -24,13 +27,19 @@ const eventSchema = new mongoose.Schema(
         message: "End date must be greater than the start date",
       },
     },
-    location: String,
+    //default online
+    location: {
+      type: String,
+      required: true,
+    },
+    //default undef
     bannerUrl: String,
     ticketPrice: {
       type: Number,
       default: 0,
       required: true,
     },
+    //default others
     category: {
       type: String,
       enum: [
@@ -53,6 +62,7 @@ const eventSchema = new mongoose.Schema(
     author: {
       type: mongoose.Types.ObjectId,
       ref: "User",
+      required: true,
     },
   },
   { timestamps: true }
