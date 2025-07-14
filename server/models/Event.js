@@ -27,7 +27,6 @@ const eventSchema = new mongoose.Schema(
         message: "End date must be greater than the start date",
       },
     },
-    //default online
     location: {
       type: String,
       required: true,
@@ -59,6 +58,10 @@ const eventSchema = new mongoose.Schema(
       required: true,
       default: "others",
     },
+    totalBookmark: {
+      type: Number,
+      default: 0,
+    },
     author: {
       type: mongoose.Types.ObjectId,
       ref: "User",
@@ -67,5 +70,22 @@ const eventSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+eventSchema.virtual("status").get(function () {
+  const now = new Date();
+
+  if (now < this.startDate) {
+    return "upcoming";
+  } else {
+    if (now > this.endDate) {
+      return "ended";
+    } else {
+      return "ongoing";
+    }
+  }
+});
+
+eventSchema.set("toJSON", { virtuals: true });
+eventSchema.set("toObject", { virtuals: true });
 
 module.exports = mongoose.model("Event", eventSchema);

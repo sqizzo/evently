@@ -3,6 +3,7 @@ const router = express.Router();
 
 // Models
 const Event = require("../models/Event");
+const User = require("../models/User");
 
 // Utils
 const authMiddleware = require("../middlewares/authMiddleware");
@@ -13,20 +14,35 @@ const { default: mongoose } = require("mongoose");
 // Route: /events
 // Method: GET
 // Header: -
-// Query: -
+// Query: page, limit
 // Body: -
 // Test: Success
 router.get("/", authMiddleware, async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+
+  // lewati berapa data pertama
+  const skip = (page - 1) * limit;
   try {
     const events = await Event.find()
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .populate("author", "email username");
+
+    const totalEvents = await Event.countDocuments();
+    const totalPages = Math.ceil(totalEvents / limit);
 
     res.status(200).json({
       success: true,
       message: "Get all events success",
       data: {
         events,
+        pagination: {
+          totalEvents,
+          totalPages,
+          currentPage: page,
+        },
       },
     });
   } catch (error) {
@@ -37,7 +53,7 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
-// Route: /events/:id
+// Route: /events/:id/detail
 // Method: GET
 // Header: Authorization Token
 // Query: id (params)
@@ -326,8 +342,70 @@ router.delete(
 // Query: id (params)
 // Body: -
 // Test:
-// router.patch("/:id/bookmark", authMiddleware, async (req, res) => {
+router.patch("/:id", authMiddleware, async (req, res) => {
+  const eventId = req.params.id;
+  const userId = req.user.id;
 
-// });
+  if (!eventId) {
+    return res.status(400).json({
+      success: false,
+      message: "Missing eventId",
+    });
+  }
+
+  if (!mongoose.isValidObjectId(eventId)) {
+    return res.status(400).json({
+      success: false,
+      message: "Event id is not a valid ObjectId",
+    });
+  }
+
+  try {
+    const user = await User.findById(userId);
+    const event = await Event.findById(eventId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        message: "Event is not valid",
+      });
+    }
+
+    const eventIndex = user.bookmarkedEvent.findIndex((id) => {
+      return id.toString() === eventId;
+    });
+
+    if (eventIndex === -1) {
+      event.totalBookmark += 1;
+      user.bookmarkedEvent.push(eventId);
+    } else {
+      event.totalBookmark == 0 ? 0 : (event.totalBookmark -= 1);
+      user.bookmarkedEvent.splice(eventIndex, 1);
+    }
+
+    await event.save();
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "User bookmark changed successfully",
+      data: {
+        bookmarkedEvent: user.bookmarkedEvent,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error?.message || "Internal server error",
+    });
+  }
+});
 
 module.exports = router;
