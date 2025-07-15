@@ -10,21 +10,30 @@ const authMiddleware = require("../middlewares/authMiddleware");
 const checkPermission = require("../middlewares/checkPermission");
 const { body, validationResult } = require("express-validator");
 const { default: mongoose } = require("mongoose");
+const parser = require("../middlewares/upload");
 
 // Route: /events
 // Method: GET
 // Header: -
-// Query: page, limit
+// Query: page, category, filter
 // Body: -
 // Test: Success
 router.get("/", authMiddleware, async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
+  const category = req.query.category;
+  const filter = req.query.search;
+
+  const query = {};
+
+  // pakai query search & category kalau ada aja
+  if (category) query.category = category;
+  if (filter) query.name = { $regex: `${filter}`, $options: "i" };
 
   // lewati berapa data pertama
   const skip = (page - 1) * limit;
   try {
-    const events = await Event.find()
+    const events = await Event.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -103,6 +112,7 @@ router.get("/:id/detail", async (req, res) => {
 router.post(
   "/create",
   authMiddleware,
+  parser.single("banner-image"),
   [
     body("name").trim().notEmpty().withMessage("Event name is required"),
     body("description")
@@ -122,10 +132,6 @@ router.post(
       .withMessage("Location is required")
       .isString()
       .withMessage("Location must be a string"),
-    body("bannerUrl")
-      .optional()
-      .isString()
-      .withMessage("Banner url must be a string"),
     body("ticketPrice")
       .optional({ checkFalsy: true })
       .isNumeric()
@@ -155,10 +161,13 @@ router.post(
       startDate,
       endDate,
       location,
-      bannerUrl,
       ticketPrice,
       category,
     } = req.body;
+
+    const bannerUrl = (await req.file)
+      ? await req.file.path
+      : "https://example.com/default-event-banner.jpg";
 
     const errors = validationResult(req);
 
@@ -193,7 +202,7 @@ router.post(
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: error?.message || "Internal server error",
+        message: "Internal server error",
       });
     }
   }
@@ -208,6 +217,7 @@ router.post(
 router.put(
   "/:id/edit",
   authMiddleware,
+  parser.single("banner-image"),
   checkPermission(Event),
   [
     body("name").trim().notEmpty().withMessage("Event name is required"),
@@ -255,7 +265,15 @@ router.put(
       .withMessage("Invalid category"),
   ],
   async (req, res) => {
-    const updateFields = { ...req.body };
+    let bannerUrl;
+    let updateFields;
+    if (await req.file) bannerUrl = req.file.path;
+
+    if (bannerUrl !== undefined) {
+      updateFields = { bannerUrl, ...req.body };
+    } else {
+      updateFields = { ...req.body };
+    }
 
     const errors = validationResult(req);
 
@@ -278,15 +296,15 @@ router.put(
         return res.status(404).json({
           success: false,
           message: "Event was not found",
-          data: {
-            event,
-          },
         });
       }
 
       res.status(200).json({
         success: true,
         message: "Event updated successfully",
+        data: {
+          event,
+        },
       });
     } catch (error) {
       res.status(500).json({
@@ -341,7 +359,7 @@ router.delete(
 // Header: Authorization Token
 // Query: id (params)
 // Body: -
-// Test:
+// Test: Success
 router.patch("/:id", authMiddleware, async (req, res) => {
   const eventId = req.params.id;
   const userId = req.user.id;

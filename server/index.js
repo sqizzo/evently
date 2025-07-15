@@ -18,6 +18,7 @@ const app = express();
 const authRouter = require("./routes/auth");
 const profileRouter = require("./routes/profile");
 const eventRouter = require("./routes/event");
+const multerErrorHandler = require("./middlewares/multerErrorHandler");
 
 // Pakai cors biar frontend bisa akses backend
 // credentials: true untuk izinin browser kirim credentials seperti cookie, auth bearer
@@ -46,6 +47,15 @@ app.get("/", (req, res) => {
 app.use("/auth", authRouter);
 app.use("/me", profileRouter);
 app.use("/events", eventRouter);
+app.use(multerErrorHandler);
+
+// Catch error kalau udah mumet banget
+app.use((err, req, res, next) => {
+  res.status(500).json({
+    success: false,
+    message: err.message,
+  });
+});
 
 // Connect MongoDB
 mongoose
