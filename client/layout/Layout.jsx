@@ -1,4 +1,6 @@
 import { Outlet } from "react-router-dom";
+import { AnimatePresence } from "motion/react";
+
 import Navbar from "../components/Navbar";
 
 function Layout() {
@@ -7,8 +9,10 @@ function Layout() {
       {/* Navbar */}
       <Navbar />
       {/* Main Section */}
-      <main>
-        <Outlet />
+      <main className="relative overflow-hidden">
+        <AnimatePresence>
+          <Outlet />
+        </AnimatePresence>
       </main>
       {/* Footer */}
     </div>

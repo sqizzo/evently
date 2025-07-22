@@ -21,7 +21,11 @@ function Navbar() {
 
   return (
     <>
-      <nav className="w-full p-4 shadow-sm flex items-center justify-between z-50">
+      <nav
+        className={`w-full p-4 ${
+          isMenuOpen ? "" : "shadow-sm"
+        } md:shadow-sm flex items-center justify-between z-100 bg-white fixed transition-all text-gray-900`}
+      >
         {/* Logo */}
         <a
           href="/"
@@ -76,7 +80,7 @@ function Navbar() {
             {isMenuOpen ? (
               <motion.div
                 key={"close"}
-                initial={{ opacity: 0 }}
+                initial={{ opacity: 1 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
@@ -86,7 +90,7 @@ function Navbar() {
             ) : (
               <motion.div
                 key={"menu"}
-                initial={{ opacity: 0, rotate: -90 }}
+                initial={{ opacity: 1 }}
                 animate={{ opacity: 1, rotate: 0 }}
                 exit={{ opacity: 0, rotate: 90 }}
                 transition={{ duration: 0.2 }}
@@ -97,16 +101,17 @@ function Navbar() {
           </AnimatePresence>
         </button>
       </nav>
+      {/* Extended Mobile Menu */}
       <AnimatePresence>
         {isMenuOpen && (
           <motion.div
             key="navbar"
-            initial={{ y: -5, opacity: 0 }}
+            className="top-[76px] fixed w-full z-150"
+            initial={{ y: -75, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ type: "spring", duration: 0.3 }}
+            transition={{ type: "tween" }}
           >
-            <div className="flex flex-col px-4 py-6 gap-4 md:hidden text-sm font-semibold shadow-sm transition-all fixed w-full bg-white z-40 pt-2">
+            <div className="flex flex-col px-4 py-6 gap-4 md:hidden text-sm font-semibold shadow-sm transition-all w-full bg-white z-40 pt-2">
               <NavbarMenuButton
                 icon={<House className="size-4" />}
                 link="/"

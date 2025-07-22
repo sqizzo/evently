@@ -1,35 +1,21 @@
-// Assets
-import Hero from "../src/assets/Hero.avif";
+// Library
+import { motion } from "motion/react";
+
+// Components
+import Hero from "../components/Home/Hero";
+import UpcomingSection from "../components/Home/UpcomingSection";
 
 function Home() {
   return (
-    <>
-      {/* Container */}
-      <div className="flex px-28 py-8 flex-col-reverse md:flex-row justify-between gap-12">
-        {/* Left - Text */}
-        <div className="flex flex-col items-center justify-center gap-6 align-middle text-center md:items-baseline md:text-start md:w-lg">
-          <h1 className="leading-tight text-4xl md:text-6xl font-bold md:mb-6">
-            Discover and Manage Events in One Place 🎉
-          </h1>
-          <p className="text-md md:text-lg">
-            Evently helps you create, promote, and enjoy events of all types —
-            faster and easier than ever. Plan less, celebrate more!
-          </p>
-          <button className="px-4 py-3 cursor-pointer bg-blue-500 rounded-xl text-white w-64 md:w-64 hover:shadow-lg hover:shadow-blue-400/50 hover:-translate-y-1 transition-all">
-            {" "}
-            Discover More{" "}
-          </button>
-        </div>
-        {/* Right - Hero Image */}
-        <div className="flex shrink-0">
-          <img
-            src={Hero}
-            alt="hero image"
-            className="size-full shrink-0 md:size-148 hover:scale-105 transition-transform"
-          />
-        </div>
-      </div>
-    </>
+    <motion.div>
+      {/* Blob */}
+      <div className="absolute -top-60 w-[600px] h-[600px] bg-gradient-to-t from-blue-500/20 to-pink-500/20 rounded-full blur-[80px] -z-10"></div>
+      <Hero />
+      {/* Blob */}
+      <div className="absolute -top-50 opacity-0 md:opacity-100 md:top-100  md:-right-20 w-[500px] h-[500px] bg-gradient-to-br from-pink-500/20 to-blue-500/40 rounded-full blur-[80px] -z-10"></div>
+      <UpcomingSection />
+      <div className="absolute bottom-10 w-[600px] h-[600px] bg-gradient-to-t from-blue-500/20 to-pink-500/20 rounded-full blur-[80px] -z-10"></div>
+    </motion.div>
   );
 }
 
