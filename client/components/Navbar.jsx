@@ -24,7 +24,7 @@ function Navbar() {
       <nav
         className={`w-full p-4 ${
           isMenuOpen ? "" : "shadow-sm"
-        } md:shadow-sm flex items-center justify-between z-100 bg-white fixed transition-all text-gray-900`}
+        } md:shadow-sm flex items-center justify-between z-110 bg-white fixed transition-all text-gray-900`}
       >
         {/* Logo */}
         <a
