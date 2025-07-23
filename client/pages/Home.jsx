@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import Hero from "../components/Home/Hero";
 import UpcomingSection from "../components/Home/UpcomingSection";
 import CategoriesSection from "../components/Home/CategoriesSection";
+import FaqSection from "../components/Home/FaqSection";
 
 function Home() {
   return (
@@ -20,6 +21,8 @@ function Home() {
       <div className="absolute bottom-10 w-[600px] h-[600px] bg-gradient-to-t from-blue-500/20 to-pink-500/20 rounded-full blur-[80px] -z-10"></div>
       {/* Categories Section */}
       <CategoriesSection />
+      {/* FAQ Section */}
+      <FaqSection />
     </motion.div>
   );
 }

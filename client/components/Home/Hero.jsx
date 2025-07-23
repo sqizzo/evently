@@ -1,7 +1,7 @@
 // Assets
 import HeroImage from "../../src/assets/Hero.png";
 
-import { motion, AnimatePresence, easeIn } from "motion/react";
+import { motion, easeIn } from "motion/react";
 
 function Hero() {
   return (
